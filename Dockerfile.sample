@@ -1,0 +1,56 @@
+# ================
+# BUILD IMAGE
+# ================
+FROM docker.io/library/ruby:2.7.0-alpine as build
+
+# Set the current working directory
+WORKDIR /app
+
+# Install dependencies required to build the application
+RUN apk update && apk add --no-cache \
+    build-base=0.5-r1 \
+    sqlite-dev=3.30.1-r1 \
+    tzdata=2019c-r0 \
+    npm=12.14.0-r0 \
+    yarn=1.19.2-r0
+
+
+# Copy Gemfile and install ruby dependencies to create a deployment bundle
+COPY Gemfile Gemfile.lock ./
+RUN gem install bundler:1.17.2 && \
+    bundle install --without development:test --deployment --jobs=10
+
+# Copy the source code into the container
+COPY . ./
+
+# Set dummy master key to work around bug: https://github.com/rails/rails/issues/32947
+ENV SECRET_KEY_BASE 1
+
+# Download javascript dependencies and precompile frontend assets
+RUN yarn install --check-files && RAILS_ENV=production bundle exec rake assets:precompile
+
+# ================
+# RUNTIME IMAGE
+# ================
+FROM docker.io/library/ruby:2.7.0-alpine
+
+# Set the working directory
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apk update && \
+    apk add --no-cache sqlite-dev=3.30.1-r1 tzdata=2019c-r0
+
+# Copy the application and production frontend bundle
+COPY --from=build --chown=nobody:nobody /app ./
+
+# Configure bundler
+ENV BUNDLE_WITHOUT=development:test
+ENV BUNDLE_PATH=vendor/bundle
+
+# Set the runtime user to nobody, which is an unprivileged user available in the
+# ruby image.
+USER nobody:nobody
+
+# Start the rails server and bind all network interfaces
+CMD ["bin/rails", "server", "--environment", "production"]

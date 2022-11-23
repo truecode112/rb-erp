@@ -1,0 +1,15 @@
+# Ignore log files
+log/
+
+# Ignore the dev SQLite
+db/*.sqlite3
+db/*.sqlite3-journal
+
+# Ignore uploaded files in dev
+storage/
+
+# Ignore master key for decrypting credentials
+config/master.key
+
+# Ignore vendored Ruby gems
+vendor/
