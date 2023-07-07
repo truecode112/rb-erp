@@ -1,4 +1,4 @@
-# Ruby on Rails Tutorial sample application
+# ERP application developed by Ruby on Rails
 
 
 ```
